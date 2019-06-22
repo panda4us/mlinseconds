@@ -3,6 +3,7 @@ import time
 import random
 import torch
 import torchvision
+import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
@@ -13,14 +14,14 @@ class SolutionModel(nn.Module):
     def __init__(self, input_size, output_size, solution):
         super(SolutionModel, self).__init__()
         self.input_size = input_size
-        sm.SolutionManager.print_hint("Hint[1]: Increase hidden size")
+        #sm.SolutionManager.print_hint("Hint[1]: Increase hidden size")
         self.hidden_size = solution.hidden_size
         self.linear1 = nn.Linear(input_size, self.hidden_size)
         self.linear2 = nn.Linear(self.hidden_size, output_size)
 
     def forward(self, x):
         x = self.linear1(x)
-        x = torch.sigmoid(x)
+        x = torch.relu_(x)
         x = self.linear2(x)
         x = torch.sigmoid(x)
         return x
@@ -36,19 +37,23 @@ class SolutionModel(nn.Module):
 class Solution():
     def __init__(self):
         # Control speed of learning
-        self.learning_rate = 0.00001
+        self.learning_rate = 1.15
         # Control number of hidden neurons
-        self.hidden_size = 1
+        self.hidden_size =20
+        self.multiplier = 1
+        self.momentum = 0.965
+        self.lr_limit=15
 
         # Grid search settings, see grid_search_tutorial
-        self.learning_rate_grid = [0.001, 0.01, 0.1]
-        self.hidden_size_grid = [1, 2, 3]
+        #self.learning_rate_grid =np.linspace(1,1.3,3)
+        self.momentum_grid=np.linspace(0.95,0.98,3)
+        #self.hidden_size_grid = [18,20,22]
         # grid search will initialize this field
         self.grid_search = None
         # grid search will initialize this field
         self.iter = 0
         # This fields indicate how many times to run with same arguments
-        self.iter_number = 2
+        self.iter_number = 100
 
     # Return trained model
     def train_model(self, train_data, train_target, context):
@@ -57,10 +62,21 @@ class Solution():
         # Model represent our neural network
         model = SolutionModel(train_data.size(1), train_target.size(1), self)
         # Optimizer used for training neural network
-        sm.SolutionManager.print_hint("Hint[2]: Learning rate is too small", context.step)
-        optimizer = optim.SGD(model.parameters(), lr=self.learning_rate)
+        #sm.SolutionManager.print_hint("Hint[2]: Learning rate is too small", context.step)
+        optimizer = optim.SGD(model.parameters(), lr=self.learning_rate, momentum=self.momentum)
+        
+        #scheduler = optim.lr_scheduler.ExponentialLR(optimizer,0.1)
         while True:
             # Report step, so we know how many steps
+            #for g in optimizer.param_groups:
+                #print(g['lr'])
+                #print(self.multiplier)
+                #g['lr'] = g['lr']*self.multiplier
+                #if g['lr']>self.lr_limit:
+                #    g['lr']=self.learning_rate
+
+            
+            
             context.increase_step()
             # model.parameters()...gradient set to zero
             optimizer.zero_grad()
@@ -84,26 +100,23 @@ class Solution():
             self.print_stats(context.step, error, correct, total)
             # update model: model.parameters() -= lr * gradient
             optimizer.step()
+            #print(error)
+            
+        #print(context.step,self.grid_search.choice_str)
+        if self.grid_search:
+            self.grid_search.add_result('step', context.step)
+        if self.iter == self.iter_number-1:
+            #print("[HelloXor] chose_str={}".format(self.grid_search.choice_str))
+            #print("[HelloXor] iters={}".format(self.grid_search.get_results('step')))
+            stats = self.grid_search.get_stats('step')
+            print("lr={} Mean={:.2f} Std={:.2f}".format(self.grid_search.choice_str,float(stats[0]), float(stats[1])))
         return model
 
     def print_stats(self, step, error, correct, total):
         if step % 1000 == 0:
             print("Step = {} Correct = {}/{} Error = {}".format(step, correct, total, error.item()))
 
-    def grid_search_tutorial(self):
-        # During grid search every possible combination in field_grid, train_model will be called
-        # iter_number times. This can be used for automatic parameters tunning.
-        if self.grid_search:
-            print("[HelloXor] learning_rate={} iter={}".format(self.learning_rate, self.iter))
-            self.grid_search.add_result('iter', self.iter)
-            if self.iter == self.iter_number-1:
-                print("[HelloXor] chose_str={}".format(self.grid_search.choice_str))
-                print("[HelloXor] iters={}".format(self.grid_search.get_results('iter')))
-                stats = self.grid_search.get_stats('iter')
-                print("[HelloXor] Mean={} Std={}".format(stats[0], stats[1]))
-        else:
-            print("Enable grid search: See run_grid_search in the end of file")
-            exit(0)
+    
 ###
 ###
 ### Don't change code after this line
@@ -152,7 +165,7 @@ run_grid_search = False
 # Uncomment next line if you want to run grid search
 #run_grid_search = True
 if run_grid_search:
-    gs.GridSearch().run(Config(), case_number=1, random_order=False, verbose=True)
+    gs.GridSearch().run(Config(), case_number=1, random_order=False, verbose=False)
 else:
     # If you want to run specific case, put number here
     sm.SolutionManager().run(Config(), case_number=-1)
