@@ -78,12 +78,12 @@ class SolutionModel(nn.Module):
 class Solution():
     def __init__(self):
         # Control speed of learning
-        self.learning_rate = 0.007
+        self.learning_rate = 0.07
         # Control number of hidden )neurons
         self.loss_function_key='BCELoss'
-        self.hidden_size1 =100
-        self.hidden_size2 =44
-        self.hidden_size3 =88
+        self.hidden_size1 =128
+        self.hidden_size2 =128
+        self.hidden_size3 =128
         self.hidden_size4 =24
         self.hidden_size5 =8
         
@@ -139,7 +139,7 @@ class Solution():
         # grid search will initialize this field
         self.iter = 0
         # This fields indicate how many times to run with same arguments
-        self.iter_number = 5
+        self.iter_number = 2
 
     # Return trained model
     def train_model(self, train_data, train_target, context):
@@ -149,7 +149,7 @@ class Solution():
         model = SolutionModel(train_data.size(1), train_target.size(1), self)
         # Optimizer used for training neural network
         #sm.SolutionManager.print_hint("Hint[2]: Learning rate is too small", context.step)
-        optimizer = optim.Adam(model.parameters(), lr=self.learning_rate)
+        optimizer = optim.SGD(model.parameters(), lr=self.learning_rate, momentum = self.momentum)
         
         #scheduler = optim.lr_scheduler.ExponentialLR(optimizer,0.1)
         while True:
@@ -225,7 +225,7 @@ class Solution():
 ###
 class Limits:
     def __init__(self):
-        self.time_limit = 2.0
+        self.time_limit = 4.0
         self.size_limit = 1000000
         self.test_limit = 1.0
 

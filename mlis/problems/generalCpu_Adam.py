@@ -22,37 +22,35 @@ class SolutionModel(nn.Module):
         self.loss_functions=solution.loss_functions
         #self.activation1=solution.activation_function1
         #self.activation2=solution.activation_function2
-        #self.hidden_size1 = solution.hidden_size1
-        self.hidden_size1 = 88
-        #self.hidden_size2 = solution.hidden_size2
-        self.hidden_size2 = 51
-        #self.hidden_size3 = solution.hidden_size3
-        self.hidden_size3 = self.hidden_size1
+        self.hidden_size1 = solution.hidden_size1
+        #self.hidden_size1 =88 
+        self.hidden_size2 = solution.hidden_size2
+        #self.hidden_size2 = 51
+        self.hidden_size3 = solution.hidden_size3
+        #self.hidden_size3 = self.hidden_size1
         self.linear1 = nn.Linear(input_size, self.hidden_size1)
         self.linear2 = nn.Linear(self.hidden_size1, self.hidden_size2)
         self.linear3 = nn.Linear(self.hidden_size2, self.hidden_size3)
         self.linear4 = nn.Linear(self.hidden_size3, output_size)
+        
         self.activation1=solution.activations[solution.activation_hidden_key_1]
         self.activation2=solution.activations[solution.activation_hidden_key_2]
         self.activation3=solution.activations[solution.activation_hidden_key_3]
         self.activations=solution.activations
+        self.activation4=nn.PReLU()
         if solution.batch_norm:
             self.BN1=nn.BatchNorm1d(self.hidden_size1,affine=False,track_running_stats=False)
             self.BN2=nn.BatchNorm1d(self.hidden_size1,affine=False,track_running_stats=False)
             self.BN3=nn.BatchNorm1d(self.hidden_size1,affine=False,track_running_stats=False)
+            self.BN4=nn.BatchNorm1d(self.hidden_size1,affine=False,track_running_stats=False)
         else:
             self.BN1=lambda x: x
             self.BN2=lambda x: x
             self.BN3=lambda x: x
+            self.BN4=lambda x: x
         
         
-        
-        
-        
-        
-        
-        
-
+    
     def forward(self, x):
         x = self.linear1(x)
         x = self.activation1(x)
@@ -64,7 +62,12 @@ class SolutionModel(nn.Module):
         x = self.activation3(x)
         x = self.BN3(x)
         x = self.linear4(x)
+        
+        
+        x = torch.selu_(x)
+        x = self.BN4(x)
         x = torch.sigmoid(x)
+        #x = self.activation4(x)
         return x
 
     def calc_error(self, output, target):
@@ -87,8 +90,8 @@ class Solution():
         self.learning_rate = 0.007
         # Control number of hidden )neurons
         self.loss_function_key='BCELoss'
-        self.hidden_size1 =100
-        self.hidden_size2 =44
+        self.hidden_size1 =88
+        self.hidden_size2 =51
         self.hidden_size3 =88
         self.hidden_size4 =24
         self.hidden_size5 =8
@@ -115,6 +118,7 @@ class Solution():
                 'prelu': nn.PReLU(),
             }
         self.loss_functions = {
+                #'BCELoss': nn.BCEWithLogitsLoss(),
                 'BCELoss': nn.BCELoss(),
                 'MSELoss': nn.MSELoss(),
                  }
@@ -126,7 +130,7 @@ class Solution():
         #self.activation_hidden_key_2_grid = list(self.activations.keys())
         #self.loss_function_key_grid = list(self.loss_functions.keys())
         # Grid search settings, see grid_search_tutorial
-        #self.learning_rate_grid =[0.015]
+        self.learning_rate_grid =[0.005, 0.007,0.009]
         #self.activation_function=["relu_","selu_","sigmoid"]
         #self.loss_function_grid=["BCELoss","MSE","L1Loss","CrossEntropyLoss","CTCLoss","BCELoss","BCEWithLogitsLoss",]
         #self.loss_function_grid=["MSE","BCELoss"]
@@ -137,7 +141,7 @@ class Solution():
         #self.activation_function2_grid=["sigmoid"]
         #self.learning_rate_grid =np.linspace(0.001,0.015,5)
         #self.momentum_grid=np.linspace(0.88,0.98,5)
-        self.hidden_size1_grid = [32,64,88]
+        #self.hidden_size2_grid = [50,60,70]
         #self.hidden_size3_grid = [256,512]
         #self.hidden_size2_grid = [256,512]
         # grid search will initialize this field
@@ -155,7 +159,7 @@ class Solution():
         model = SolutionModel(train_data.size(1), train_target.size(1), self)
         # Optimizer used for training neural network
         #sm.SolutionManager.print_hint("Hint[2]: Learning rate is too small", context.step)
-        optimizer = optim.Adam(model.parameters(), lr=self.learning_rate, betas =(0.5,0.7))
+        optimizer = optim.Adam(model.parameters(), lr=self.learning_rate, betas =(0.6,0.8))
         
         #scheduler = optim.lr_scheduler.ExponentialLR(optimizer,0.1)
         while True:
@@ -270,7 +274,7 @@ run_grid_search = False
 # Uncomment next line if you want to run grid search
 #run_grid_search = True
 if run_grid_search:
-    gs.GridSearch().run(Config(), case_number=8, random_order=False, verbose=False)
+    gs.GridSearch().run(Config(), case_number=6, random_order=False, verbose=False)
 else:
     # If you want to run specific case, put number here
     sm.SolutionManager().run(Config(), case_number=-1)
