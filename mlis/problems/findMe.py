@@ -22,23 +22,28 @@ class SolutionModel(nn.Module):
         self.hidden_size1 = solution.hidden_size1
         self.hidden_size2 = solution.hidden_size2
         self.hidden_size3 = solution.hidden_size3
-        self.linear1 = nn.Linear(input_size, self.hidden_size1)
-        self.linear2 = nn.Linear(self.hidden_size1, self.hidden_size2)
-        self.linear3 = nn.Linear(self.hidden_size2, self.hidden_size3)
-        self.linear4 = nn.Linear(self.hidden_size3, output_size)
-        self.activation1=solution.activations[solution.activation_hidden_key_1]
-        self.activation2=solution.activations[solution.activation_hidden_key_2]
-        self.activation3=solution.activations[solution.activation_hidden_key_3]
-        self.activations=solution.activations
+        linear1 = nn.Linear(input_size, self.hidden_size1)
+        linear2 = nn.Linear(self.hidden_size1, self.hidden_size2)
+        linear3 = nn.Linear(self.hidden_size2, self.hidden_size3)
+        linear4 = nn.Linear(self.hidden_size3, output_size)
+        activation1=solution.activations[solution.activation_hidden_key_1]
+        activation2=solution.activations[solution.activation_hidden_key_2]
+        activation3=solution.activations[solution.activation_hidden_key_3]
+        activations=solution.activations
         if solution.batch_norm:
-            self.BN1=nn.BatchNorm1d(self.hidden_size1,affine=False,track_running_stats=False)
-            self.BN2=nn.BatchNorm1d(self.hidden_size1,affine=False,track_running_stats=False)
-            self.BN3=nn.BatchNorm1d(self.hidden_size1,affine=False,track_running_stats=False)
+            BN1=nn.BatchNorm1d(self.hidden_size1,affine=False,track_running_stats=False)
+            BN2=nn.BatchNorm1d(self.hidden_size1,affine=False,track_running_stats=False)
+            BN3=nn.BatchNorm1d(self.hidden_size1,affine=False,track_running_stats=False)
+            BN4=nn.BatchNorm1d(self.hidden_size1,affine=False,track_running_stats=False)
         else:
-            self.BN1=lambda x: x
-            self.BN2=lambda x: x
-            self.BN3=lambda x: x
-        
+            BN1=lambda x: x
+            BN2=lambda x: x
+            BN3=lambda x: x
+            BN4=lambda x: x
+        submodels= [linear1,activation1,BN1,linear2,activation2,
+        BN2, linear3, activation3, BN3, linear4, nn.Sigmoid()]
+
+        self.sequential= nn.Sequential(*submodels)
         
         
         
@@ -48,18 +53,8 @@ class SolutionModel(nn.Module):
         
 
     def forward(self, x):
-        x = self.linear1(x)
-        x = self.activation1(x)
-        x = self.BN1(x)
-        x = self.linear2(x)
-        x = self.activation2(x)
-        x = self.BN2(x)  
-        x = self.linear3(x)
-        x = self.activation3(x)
-        x = self.BN3(x)
-        x = self.linear4(x)
-        x = torch.sigmoid(x)
-        return x
+       
+        return self.sequential(x)
 
     def calc_error(self, output, target):
         # This is loss function
@@ -81,9 +76,9 @@ class Solution():
         self.learning_rate = 0.07
         # Control number of hidden )neurons
         self.loss_function_key='BCELoss'
-        self.hidden_size1 =128
-        self.hidden_size2 =128
-        self.hidden_size3 =128
+        self.hidden_size1 = 64
+        self.hidden_size2 = 64
+        self.hidden_size3 = 64
         self.hidden_size4 =24
         self.hidden_size5 =8
         
@@ -146,12 +141,31 @@ class Solution():
         # Uncommend next line to understand grid search
 #        return self.grid_search_tutorial()
         # Model represent our neural network
+        
+        
+        
+        #create a dataloader object
+        #my_dataset = utils.TensorDataset(train_data,train_target)
+        #my_dataloader = utils.DataLoader(my_dataset, batch_size=500, shuffle=True)
+        #print('before dataloader')
+        #print(train_data.size(),train_target.size())
+
+        #train_data_batch,train_target_baatch= next(iter(my_dataloader))
+        #print('after dataloader')
+        #print(train_data.size(),train_target.size())
+
         model = SolutionModel(train_data.size(1), train_target.size(1), self)
+        
         # Optimizer used for training neural network
         #sm.SolutionManager.print_hint("Hint[2]: Learning rate is too small", context.step)
-        optimizer = optim.SGD(model.parameters(), lr=self.learning_rate, momentum = self.momentum)
+        optimizer = optim.Adam(model.parameters(), lr=self.learning_rate)
         
         #scheduler = optim.lr_scheduler.ExponentialLR(optimizer,0.1)
+        batch_size= 512
+        #print("number of epoch {}".format(train_data.size(0)//batch_size))
+
+
+        correct_batches= 0    
         while True:
             # Report step, so we know how many steps
             #for g in optimizer.param_groups:
@@ -160,29 +174,37 @@ class Solution():
                 #g['lr'] = g['lr']*self.multiplier
                 #if g['lr']>self.lr_limit:
                     #g['lr']=self.learning_rate
-
+            #new batch
             
-            
+            #train_data_batch,train_target_batch= next(iter(my_dataloader))
             context.increase_step()
             # model.parameters()...gradient set to zero
             optimizer.zero_grad()
             # evaluate model => model.forward(data)
-            output = model(train_data)
+            ind = random.choice(range(train_data.size(0)//batch_size-1))
+            
+            #print("starting {} epoch".format(ind))
+            data = train_data[batch_size*ind:batch_size*(ind+1)]
+            target = train_target[batch_size*ind:batch_size*(ind+1)]
+            output = model(data)
             # if x < 0.5 predict 0 else predict 1
             predict = model.calc_predict(output)
             # Number of correct predictions
-            correct = predict.eq(train_target.view_as(predict)).long().sum().item()
+            correct = predict.eq(target.view_as(predict)).long().sum().item()
             # Total number of needed predictions
             total = predict.view(-1).size(0)
             # No more time left or learned everything, stop training
             time_left = context.get_timer().get_time_left()
-            if time_left < 0.1 or correct == total:
+            if correct == total:
+                correct_batches=correct_batches+1
+                #print("correct batches{}".format(correct_batches))
+            if time_left < 0.1 or correct_batches>100: #or correct == total:
                 #print("breaking")
                 #print(correct)
-                #print(total)
+                #print("finished ".format(ind, correct, total))
                 break
             # calculate error
-            error = model.calc_error(output, train_target)
+            error = model.calc_error(output, target)
             # calculate deriviative of model.forward() and put it in model.parameters()...gradient
             error.backward()
             #print(model.get_avg_grad())
@@ -225,7 +247,7 @@ class Solution():
 ###
 class Limits:
     def __init__(self):
-        self.time_limit = 4.0
+        self.time_limit = 2.0
         self.size_limit = 1000000
         self.test_limit = 1.0
 

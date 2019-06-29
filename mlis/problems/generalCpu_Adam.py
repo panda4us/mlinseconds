@@ -32,6 +32,14 @@ class SolutionModel(nn.Module):
         self.linear2 = nn.Linear(self.hidden_size1, self.hidden_size2)
         self.linear3 = nn.Linear(self.hidden_size2, self.hidden_size3)
         self.linear4 = nn.Linear(self.hidden_size3, output_size)
+        #torch.nn.init.xavier_uniform_(self.linear1.weight)
+        #torch.nn.init.xavier_uniform_(self.linear2.weight)
+        #torch.nn.init.xavier_uniform_(self.linear3.weight)
+       
+        #self.linear1.weight.data.fill_(0.01)
+        #self.linear1.bias.data.fill_(0.00)
+        #self.linear2.bias.data.fill_(0.00)
+        #self.linear3.bias.data.fill_(0.00)
         
         self.activation1=solution.activations[solution.activation_hidden_key_1]
         self.activation2=solution.activations[solution.activation_hidden_key_2]
@@ -90,9 +98,9 @@ class Solution():
         self.learning_rate = 0.007
         # Control number of hidden )neurons
         self.loss_function_key='BCELoss'
-        self.hidden_size1 =88
-        self.hidden_size2 =51
-        self.hidden_size3 =88
+        self.hidden_size1 =77
+        self.hidden_size2 =44
+        self.hidden_size3 =77
         self.hidden_size4 =24
         self.hidden_size5 =8
         
@@ -177,6 +185,12 @@ class Solution():
             # model.parameters()...gradient set to zero
             optimizer.zero_grad()
             # evaluate model => model.forward(data)
+            indices = torch.randperm(train_data.size()[0])
+
+            train_data = train_data[indices]
+            train_target = train_target[indices]
+
+            
             output = model(train_data)
             # if x < 0.5 predict 0 else predict 1
             predict = model.calc_predict(output)
